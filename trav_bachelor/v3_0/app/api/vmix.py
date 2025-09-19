@@ -300,87 +300,77 @@ def load_teams_to_vmix():
 
 @vmix_bp.route('/toggle-audio', methods=['POST'])
 def toggle_audio():
-    """Active ou désactive l'audio d'une entrée spécifique"""
-    data = request.json
+    """Activer ou désactiver l'audio d'une entrée vMix"""
+    data = request.get_json()
 
     if not data or 'inputId' not in data:
-        return jsonify({"error": "L'ID de l'input est requis", "status": "error"}), 400
+        return jsonify({"status": "error", "message": "L'ID de l'entrée est requis"}), 400
 
     input_id = data['inputId']
-    mute_state = data.get('mute')  # True pour mute, False pour unmute, None pour toggle
 
-    success = vmix_manager.toggle_audio(input_id, mute_state)
-
-    if success:
-        action = "modifié"
-        if mute_state is not None:
-            action = "coupé" if mute_state else "activé"
-
-        return jsonify({
-            "message": f"Audio de l'input {input_id} {action} avec succès",
-            "status": "success"
-        })
+    # Si mute est spécifié explicitement, utiliser AudioOn ou AudioOff
+    if 'mute' in data:
+        mute = data['mute']
+        if mute:
+            result = vmix_manager.toggle_audio(input_id, mute=True)
+        else:
+            result = vmix_manager.toggle_audio(input_id, mute=False)
     else:
-        return jsonify({
-            "error": f"Erreur lors de la modification de l'audio pour l'input {input_id}",
-            "status": "error"
-        }), 500
+        # Sinon utiliser AudioToggle
+        result = vmix_manager.toggle_audio(input_id)
+
+    if result:
+        return jsonify({"status": "success", "message": "État audio modifié avec succès"})
+    else:
+        return jsonify({"status": "error", "message": "Erreur lors de la modification de l'état audio"}), 500
 
 @vmix_bp.route('/audio/volume', methods=['POST'])
-def adjust_audio_volume():
-    """Ajuste le volume d'une entrée audio"""
-    data = request.json
+def set_audio_volume():
+    """Définir le volume d'une entrée audio vMix"""
+    data = request.get_json()
 
     if not data or 'inputId' not in data or 'volume' not in data:
-        return jsonify({
-            "error": "L'ID de l'input et le volume sont requis",
-            "status": "error"
-        }), 400
+        return jsonify({"status": "error", "message": "L'ID de l'entrée et le volume sont requis"}), 400
 
     input_id = data['inputId']
     volume = data['volume']
 
-    # Vérifier que le volume est un nombre entre 0 et 100
+    # Valider que le volume est entre 0 et 100
     try:
-        volume = float(volume)
+        volume = int(volume)
         if volume < 0 or volume > 100:
-            raise ValueError("Le volume doit être entre 0 et 100")
-    except ValueError as e:
-        return jsonify({
-            "error": str(e),
-            "status": "error"
-        }), 400
+            return jsonify({"status": "error", "message": "Le volume doit être entre 0 et 100"}), 400
+    except ValueError:
+        return jsonify({"status": "error", "message": "Le volume doit être un nombre entier"}), 400
 
-    success = vmix_manager.adjust_audio_volume(input_id, volume)
+    result = vmix_manager.adjust_audio_volume(input_id, volume)
 
-    if success:
-        return jsonify({
-            "message": f"Volume de l'input {input_id} ajusté à {volume}%",
-            "status": "success"
-        })
+    if result:
+        return jsonify({"status": "success", "message": f"Volume ajusté à {volume}%"})
     else:
-        return jsonify({
-            "error": f"Erreur lors de l'ajustement du volume pour l'input {input_id}",
-            "status": "error"
-        }), 500
+        return jsonify({"status": "error", "message": "Erreur lors de l'ajustement du volume"}), 500
 
 @vmix_bp.route('/audio/status', methods=['GET'])
 def get_audio_status():
-    """Récupère le statut audio des entrées vMix"""
-    input_id = request.args.get('inputId')  # Optionnel, pour filtrer un seul input
+    """Récupérer le statut audio de toutes les entrées vMix"""
+    try:
+        audio_status = vmix_manager.get_audio_status()
 
-    audio_status = vmix_manager.get_audio_status(input_id)
-
-    if audio_status is None:
+        if audio_status is not None:
+            return jsonify({
+                "status": "success",
+                "audioStatus": audio_status
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Impossible de récupérer le statut audio"
+            }), 500
+    except Exception as e:
         return jsonify({
-            "error": "Erreur lors de la récupération du statut audio",
-            "status": "error"
+            "status": "error",
+            "message": f"Erreur lors de la récupération du statut audio: {str(e)}"
         }), 500
-
-    return jsonify({
-        "audioStatus": audio_status,
-        "status": "success"
-    })
 
 @vmix_bp.route('/update-score', methods=['POST'])
 def update_score():
