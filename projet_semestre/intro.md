@@ -1,0 +1,7 @@
+Streaming semi-automatisé pour évènements sportifs
+
+De nos jours les évènements sportifs au niveau amateur ou semi-professionel sont de plus en plus accessibles au grand public. Que ce soit à l'aide des réseaux sociaux ou grâce à l'avancé technologique qui permet l'emploi de caméra intelligente, les possibilités pour suivre les performances de l'équipe de football de la communne, l'équipe de volleyball du village ou l'équipe de basket juniors évoluant en Italie sans se déplacer de son canapé sont nombreuses.
+
+Malgré le pletore de moyens mis à disposition des spectateurs, si l'on place du côté du diffuseur d'évènements sportifs il y a un nombre non négligeable de contraintes qui peuvent agir comme un frein. En effet, aussi plétoriques et modernes qu'elles existent ces solutions peuvent s'avérer restreignantes en terme d'environnement de diffusion, onéreuses pour un éventail de fonctionnalités qui ne correspondent pas forcément aux besoins réels d'un diffuseur.
+
+Par conséquent, le développement d'une propre solution de streaming peut s'avérer être une alternative pour certaines organisations sportives. C'est notamment le cas du Chenois Club Volleyball qui souhaite moderniser la diffusion des matchs de l'équipe première pour pouvoir entre autre répondre aux exigences de la ligue nationale qui entreront en vigueur à partir de la prochaine saison à savoir (2025-2026).

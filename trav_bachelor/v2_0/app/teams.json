@@ -1,0 +1,81 @@
+{
+    "e26c1545-3079-41cc-8f65-2d867ebb3716": {
+        "id": "e26c1545-3079-41cc-8f65-2d867ebb3716",
+        "name": "Team A test",
+        "logo_path": null,
+        "players": [
+            {
+                "prenom": "Thomas",
+                "nom": "Dupont",
+                "numero": "7",
+                "position": "Passeur",
+                "date_naissance": "12/05/1997",
+                "taille": "190"
+            },
+            {
+                "prenom": "Nicolas",
+                "nom": "Martin",
+                "numero": "9",
+                "position": "Attaquant",
+                "date_naissance": "23/08/1996",
+                "taille": "198"
+            },
+            {
+                "prenom": "Julien",
+                "nom": "Bernard",
+                "numero": "12",
+                "position": "Central",
+                "date_naissance": "08/03/1998",
+                "taille": "204"
+            },
+            {
+                "prenom": "Antoine",
+                "nom": "Durand",
+                "numero": "4",
+                "position": "Réceptionneur-attaquant",
+                "date_naissance": "30/06/1995",
+                "taille": "195"
+            },
+            {
+                "prenom": "Maxime",
+                "nom": "Leroy",
+                "numero": "1",
+                "position": "Libéro",
+                "date_naissance": "14/09/1999",
+                "taille": "182"
+            },
+            {
+                "prenom": "Lucas",
+                "nom": "Moreau",
+                "numero": "8",
+                "position": "Passeur",
+                "date_naissance": "19/07/1997",
+                "taille": "188"
+            },
+            {
+                "prenom": "Vincent",
+                "nom": "Petit",
+                "numero": "15",
+                "position": "Central",
+                "date_naissance": "02/04/1996",
+                "taille": "202"
+            },
+            {
+                "prenom": "Alexandre",
+                "nom": "Robert",
+                "numero": "11",
+                "position": "Attaquant",
+                "date_naissance": "17/11/1998",
+                "taille": "196"
+            },
+            {
+                "prenom": "Mathieu",
+                "nom": "Richard",
+                "numero": "6",
+                "position": "Réceptionneur-attaquant",
+                "date_naissance": "25/02/1995",
+                "taille": "193"
+            }
+        ]
+    }
+}

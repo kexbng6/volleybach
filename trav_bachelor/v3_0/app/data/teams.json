@@ -1,0 +1,160 @@
+[
+    {
+        "id": "25b25d13-5b23-4cdd-ad95-f3cc676fe27d",
+        "name": "team test livrable",
+        "logo": "/static/media/team_logos/90b91e58-4380-4b04-8240-628ef9bb4eb6_24h1ov-28469228.jpg",
+        "players": [
+            {
+                "numero": "7",
+                "nom": "Dupont",
+                "prenom": "Thomas",
+                "position": "Passeur",
+                "taille": "190",
+                "date_naissance": "12/05/1997"
+            },
+            {
+                "numero": "9",
+                "nom": "Martin",
+                "prenom": "Nicolas",
+                "position": "Attaquant",
+                "taille": "198",
+                "date_naissance": "23/08/1996"
+            },
+            {
+                "numero": "12",
+                "nom": "Bernard",
+                "prenom": "Julien",
+                "position": "Central",
+                "taille": "204",
+                "date_naissance": "08/03/1998"
+            },
+            {
+                "numero": "4",
+                "nom": "Durand",
+                "prenom": "Antoine",
+                "position": "R\u00e9ceptionneur-attaquant",
+                "taille": "195",
+                "date_naissance": "30/06/1995"
+            },
+            {
+                "numero": "1",
+                "nom": "Leroy",
+                "prenom": "Maxime",
+                "position": "Lib\u00e9ro",
+                "taille": "182",
+                "date_naissance": "14/09/1999"
+            },
+            {
+                "numero": "8",
+                "nom": "Moreau",
+                "prenom": "Lucas",
+                "position": "Passeur",
+                "taille": "188",
+                "date_naissance": "19/07/1997"
+            },
+            {
+                "numero": "15",
+                "nom": "Petit",
+                "prenom": "Vincent",
+                "position": "Central",
+                "taille": "202",
+                "date_naissance": "02/04/1996"
+            },
+            {
+                "numero": "11",
+                "nom": "Robert",
+                "prenom": "Alexandre",
+                "position": "Attaquant",
+                "taille": "196",
+                "date_naissance": "17/11/1998"
+            },
+            {
+                "numero": "6",
+                "nom": "Richard",
+                "prenom": "Mathieu",
+                "position": "R\u00e9ceptionneur-attaquant",
+                "taille": "193",
+                "date_naissance": "25/02/1995"
+            }
+        ]
+    },
+    {
+        "id": "f180a2c3-e4a1-4ceb-b76e-56a381738df0",
+        "name": "test a \u00e9quipe livrable",
+        "logo": "/static/media/team_logos/faecf361-79f7-494b-9d3f-dd1a9925c27e_Geneve-Chenois-Volleyball-logo.png",
+        "players": [
+            {
+                "numero": "7",
+                "nom": "Dupont",
+                "prenom": "Thomas",
+                "position": "Passeur",
+                "taille": "190",
+                "date_naissance": "12/05/1997"
+            },
+            {
+                "numero": "9",
+                "nom": "Martin",
+                "prenom": "Nicolas",
+                "position": "Attaquant",
+                "taille": "198",
+                "date_naissance": "23/08/1996"
+            },
+            {
+                "numero": "12",
+                "nom": "Bernard",
+                "prenom": "Julien",
+                "position": "Central",
+                "taille": "204",
+                "date_naissance": "08/03/1998"
+            },
+            {
+                "numero": "4",
+                "nom": "Durand",
+                "prenom": "Antoine",
+                "position": "R\u00e9ceptionneur-attaquant",
+                "taille": "195",
+                "date_naissance": "30/06/1995"
+            },
+            {
+                "numero": "1",
+                "nom": "Leroy",
+                "prenom": "Maxime",
+                "position": "Lib\u00e9ro",
+                "taille": "182",
+                "date_naissance": "14/09/1999"
+            },
+            {
+                "numero": "8",
+                "nom": "Moreau",
+                "prenom": "Lucas",
+                "position": "Passeur",
+                "taille": "188",
+                "date_naissance": "19/07/1997"
+            },
+            {
+                "numero": "15",
+                "nom": "Petit",
+                "prenom": "Vincent",
+                "position": "Central",
+                "taille": "202",
+                "date_naissance": "02/04/1996"
+            },
+            {
+                "numero": "11",
+                "nom": "Robert",
+                "prenom": "Alexandre",
+                "position": "Attaquant",
+                "taille": "196",
+                "date_naissance": "17/11/1998"
+            },
+            {
+                "numero": "6",
+                "nom": "Richard",
+                "prenom": "Mathieu",
+                "position": "R\u00e9ceptionneur-attaquant",
+                "taille": "193",
+                "date_naissance": "25/02/1995"
+            }
+        ]
+    }
+]

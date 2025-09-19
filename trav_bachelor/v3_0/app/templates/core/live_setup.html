@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration du Direct - VolleyStream</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="bg-light">
+    {% include 'core/nav.html' %}
+
+    <div id="live-setup-app" class="container py-4">
+        <h1 class="text-center mb-4">Configuration du Direct</h1>
+
+        <!-- Statut vMix -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h5 mb-0"><i class="bi bi-broadcast me-2"></i> Statut de connexion vMix</h2>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div v-if="vmixStatus.connected" class="text-success">
+                            <i class="bi bi-check-circle-fill me-2"></i> Connecté à vMix ({% raw %}{{ vmixStatus.host }}:{{ vmixStatus.port }}{% endraw %})
+                        </div>
+                        <div v-else class="text-danger">
+                            <i class="bi bi-x-circle-fill me-2"></i> Non connecté à vMix
+                        </div>
+                        <small class="text-muted" v-if="vmixStatus.lastChecked">Dernière vérification: {% raw %}{{ formatDateTime(vmixStatus.lastChecked) }}{% endraw %}</small>
+                    </div>
+                    <button @click="checkVMixConnection" class="btn btn-outline-primary">
+                        <i class="bi bi-arrow-repeat me-1"></i> Vérifier
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration RTMP minimale -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h5 mb-0"><i class="bi bi-camera-video-fill me-2"></i> Configuration RTMP</h2>
+            </div>
+            <div class="card-body">
+                <form @submit.prevent="saveStreamingConfig">
+                    <div class="mb-3">
+                        <label for="streamTitle" class="form-label">Titre du stream</label>
+                        <input type="text" class="form-control" id="streamTitle" v-model="streamingConfig.title" placeholder="Titre du stream...">
+                        <div class="form-text">Le titre qui apparaîtra sur la plateforme de streaming</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="rtmpUrl" class="form-label">URL RTMP</label>
+                        <input type="text" class="form-control" id="rtmpUrl" v-model="streamingConfig.rtmpUrl" placeholder="rtmp://...">
+                        <div class="form-text">L'URL RTMP fournie par votre service de streaming</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="streamKey" class="form-label">Clé de stream</label>
+                        <div class="input-group">
+                            <input :type="showStreamKey ? 'text' : 'password'" class="form-control" id="streamKey" v-model="streamingConfig.streamKey" placeholder="Votre clé de stream...">
+                            <button class="btn btn-outline-secondary" type="button" @click="showStreamKey = !showStreamKey">
+                                <i class="bi" :class="showStreamKey ? 'bi-eye-slash-fill' : 'bi-eye-fill'"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">La clé secrète de votre stream</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i> Enregistrer la configuration RTMP
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Contrôle de la miniature -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h5 mb-0"><i class="bi bi-image me-2"></i> Gestion de la miniature</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="thumbnailUpload" class="form-label">Télécharger une miniature</label>
+                            <input type="file" class="form-control" id="thumbnailUpload" @change="handleThumbnailUpload" accept="image/*">
+                            <div class="form-text">Format recommandé : 1280x720px</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="thumbnailSwitch" v-model="thumbnailVisible" @change="toggleThumbnail">
+                                <label class="form-check-label" for="thumbnailSwitch">Afficher la miniature dans le direct</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="thumbnail-preview-container border rounded p-2 text-center" v-if="thumbnailPreview">
+                            <img :src="thumbnailPreview" alt="Aperçu de la miniature" class="img-fluid thumbnail-preview">
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-danger" @click="removeThumbnail">
+                                    <i class="bi bi-trash"></i> Supprimer
+                                </button>
+                            </div>
+                        </div>
+                        <div class="thumbnail-preview-container border rounded p-3 text-center bg-light" v-else>
+                            <i class="bi bi-image text-muted display-4"></i>
+                            <p class="text-muted">Aucune miniature téléchargée</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.2.47/dist/vue.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="{{ url_for('static', filename='js/live_setup.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diffusion en Direct - VolleyStream</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Socket.io -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        /* Styles spécifiques pour la page de diffusion */
+        .dashboard-card {
+            height: 100%;
+            transition: all 0.2s;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+        }
+        .card-header {
+            font-weight: bold;
+        }
+        .compact-control {
+            font-size: 0.9rem;
+        }
+        /* Styles pour les cartes d'entrées */
+        .input-card {
+            height: 100%;
+            min-height: 160px;
+        }
+        /* Style pour la section scoreboard */
+        .score-display {
+            font-size: 3rem;
+            font-weight: bold;
+        }
+        .team-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .set-score {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        /* Pulsation pour les éléments actifs */
+        .active-pulse {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-light">
+    {% include 'core/nav.html' %}
+
+    <div id="live-broadcast-app" class="container-fluid py-3">
+        <!-- Système de notifications -->
+        <div class="position-fixed top-0 end-0 p-3" style="z-index: 1050">
+            <div v-for="notification in notifications" :key="notification.id" class="toast show" :class="`text-bg-${notification.type}`">
+                <div class="toast-body">
+                    {% raw %}{{ notification.message }}{% endraw %}
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h1 class="h2 mb-0">Diffusion en Direct</h1>
+            <div>
+                <span v-if="streamingStatus.isStreaming" class="badge bg-danger active-pulse me-2">
+                    <i class="bi bi-broadcast"></i> EN DIRECT
+                </span>
+                <span v-if="streamingStatus.isRecording" class="badge bg-danger active-pulse">
+                    <i class="bi bi-record-circle"></i> ENREGISTREMENT
+                </span>
+            </div>
+        </div>
+
+        <div v-if="loading" class="text-center my-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
+            <p class="mt-2">Chargement des données...</p>
+        </div>
+
+        <div v-if="!loading" class="row g-3">
+            <!-- PREMIÈRE RANGÉE : 3 colonnes pour Live, Caméras et Audio -->
+
+            <!-- Section Contrôle du Streaming - 1/3 de la largeur -->
+            <div class="col-md-4">
+                <div class="card dashboard-card shadow-sm">
+                    <div class="card-header bg-danger text-white">
+                        <h2 class="h5 mb-0"><i class="bi bi-broadcast me-2"></i> Contrôle de la Diffusion</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <!-- Contrôle du streaming -->
+                            <div class="col-md-6">
+                                <div class="card border-danger h-100">
+                                    <div class="card-header bg-danger bg-opacity-10 text-danger">Streaming</div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label for="streamingChannel" class="form-label">Canal de streaming</label>
+                                            <select class="form-select form-select-sm" id="streamingChannel" v-model="streamingChannel" :disabled="streamingStatus.isStreaming">
+                                                <option value="0">Canal 1 (par défaut)</option>
+                                                <option value="1">Canal 2</option>
+                                                <option value="2">Canal 3</option>
+                                                <option value="3">Canal 4</option>
+                                                <option value="4">Canal 5</option>
+                                            </select>
+                                        </div>
+                                        <div class="d-grid gap-2">
+                                            <button @click="startStreaming" class="btn btn-success" :disabled="streamingStatus.isStreaming">
+                                                <i class="bi bi-play-circle me-1"></i> Démarrer
+                                            </button>
+                                            <button @click="stopStreaming" class="btn btn-danger" :disabled="!streamingStatus.isStreaming">
+                                                <i class="bi bi-stop-circle me-1"></i> Arrêter
+                                            </button>
+                                        </div>
+                                        <div class="text-center mt-2" v-if="streamingStatus.isStreaming">
+                                            <small class="text-danger">En direct depuis {% raw %}{{ formatDuration(streamingStatus.streamingTime) }}{% endraw %}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Contrôle de l'enregistrement -->
+                            <div class="col-md-6">
+                                <div class="card border-danger h-100">
+                                    <div class="card-header bg-danger bg-opacity-10 text-danger">Enregistrement</div>
+                                    <div class="card-body">
+                                        <div class="d-grid gap-2">
+                                            <button @click="startRecording" class="btn btn-success" :disabled="streamingStatus.isRecording">
+                                                <i class="bi bi-record-circle me-1"></i> Démarrer
+                                            </button>
+                                            <button @click="stopRecording" class="btn btn-danger" :disabled="!streamingStatus.isRecording">
+                                                <i class="bi bi-stop-circle me-1"></i> Arrêter
+                                            </button>
+                                        </div>
+                                        <div class="text-center mt-2" v-if="streamingStatus.isRecording">
+                                            <small class="text-danger">Enregistrement depuis {% raw %}{{ formatDuration(streamingStatus.recordingTime) }}{% endraw %}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Caméras - 1/3 de la largeur -->
+            <div class="col-md-4">
+                <div class="card dashboard-card shadow-sm">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-camera-video me-2"></i> Caméras</span>
+                        <div>
+                            <span class="badge bg-light text-primary me-2">{% raw %}{{ videoInputs.filter(input => input.type.includes('Camera')).length }}{% endraw %} caméras</span>
+                            <button @click="refreshCameraInputs"
+                                    :disabled="isRefreshing"
+                                    class="btn btn-sm btn-light">
+                                <i class="bi" :class="{'bi-arrow-clockwise': !isRefreshing, 'bi-arrow-clockwise animate-spin': isRefreshing}"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div v-if="videoInputs.filter(input => input.type.includes('Camera')).length === 0" class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i> Aucune caméra disponible
+                        </div>
+                        <div v-else>
+                            <div v-for="input in videoInputs.filter(input => input.type.includes('Camera'))" :key="input.id" class="d-flex justify-content-between align-items-center mb-2">
+                                <span>{% raw %}{{ input.name }}{% endraw %}</span>
+                                <div class="btn-group btn-group-sm">
+                                    <button @click="switchToInput(input.id, 'cut')" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-lightning-fill"></i> CUT
+                                    </button>
+                                    <button @click="switchToInput(input.id, 'transition')" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-film"></i> Transition
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Contrôle Audio - 1/3 de la largeur -->
+            <div class="col-md-4">
+                <div class="card dashboard-card shadow-sm">
+                    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-music-note-list"></i> Contrôle Audio</span>
+                        <div>
+                            <span class="badge bg-dark me-2">{% raw %}{{ videoInputs.length }}{% endraw %} sources</span>
+                            <button @click="refreshAudioInputs"
+                                    :disabled="isRefreshing"
+                                    class="btn btn-sm btn-light">
+                                <i class="bi" :class="{'bi-arrow-clockwise': !isRefreshing, 'bi-arrow-clockwise animate-spin': isRefreshing}"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Message si aucune source audio n'est détectée -->
+                        <div v-if="!commentatorInputId && !ambientInputId" class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i> Aucune source audio détectée
+                        </div>
+
+                        <!-- Contrôles pour le commentateur -->
+                        <div v-if="commentatorInputId" class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label mb-0">Commentateur</label>
+                                <button @click="toggleCommentatorAudio"
+                                        class="btn btn-sm"
+                                        :class="commentatorAudio ? 'btn-success' : 'btn-danger'">
+                                    <i class="bi" :class="commentatorAudio ? 'bi-mic' : 'bi-mic-mute'"></i>
+                                </button>
+                            </div>
+                            <input type="range"
+                                   class="form-range"
+                                   v-model="commentatorVolume"
+                                   @change="updateCommentatorVolume"
+                                   min="0"
+                                   max="100">
+                        </div>
+
+                        <!-- Contrôles pour l'ambiance -->
+                        <div v-if="ambientInputId" class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label mb-0">Ambiance</label>
+                                <button @click="toggleAmbientAudio"
+                                        class="btn btn-sm"
+                                        :class="ambientAudio ? 'btn-success' : 'btn-danger'">
+                                    <i class="bi" :class="ambientAudio ? 'bi-volume-up' : 'bi-volume-mute'"></i>
+                                </button>
+                            </div>
+                            <input type="range"
+                                   class="form-range"
+                                   v-model="ambientVolume"
+                                   @change="updateAmbientVolume"
+                                   min="0"
+                                   max="100">
+                        </div>
+
+                        <!-- Liste des autres sources audio -->
+                        <div v-if="videoInputs.length > 0">
+                            <hr>
+                            <h6>Autres sources</h6>
+                            <div v-for="input in videoInputs" :key="input.id" class="d-flex justify-content-between align-items-center mb-2">
+                                <span>{% raw %}{{ input.name }}{% endraw %}</span>
+                                <button @click="toggleAudio(input.id)"
+                                        class="btn btn-sm"
+                                        :class="audioStates[input.id] ? 'btn-success' : 'btn-danger'">
+                                    <i class="bi" :class="audioStates[input.id] ? 'bi-volume-up' : 'bi-volume-mute'"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DEUXIÈME RANGÉE : Replays -->
+
+            <!-- Section Replays - Pleine largeur -->
+            <div class="col-12">
+                <div class="card dashboard-card shadow-sm">
+                    <div class="card-header bg-info text-white">
+                        <h2 class="h5 mb-0"><i class="bi bi-arrow-counterclockwise me-2"></i> Gestion des Replays</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <!-- Configuration du Replay -->
+                            <div class="col-md-4">
+                                <div class="card border-info h-100">
+                                    <div class="card-header bg-info bg-opacity-10 text-info">Configuration</div>
+                                    <div class="card-body">
+                                        <label for="replayDuration" class="form-label">Durée du buffer (secondes)</label>
+                                        <div class="input-group mb-3">
+                                            <input type="number" class="form-control" id="replayDuration" v-model="replayConfig.duration" min="1" max="60">
+                                            <button class="btn btn-outline-secondary" type="button" @click="setReplayDuration">Appliquer</button>
+                                        </div>
+
+                                        <!-- Contrôles d'enregistrement -->
+                                        <div class="d-grid gap-2 mt-3">
+                                            <button @click="toggleReplayRecording" class="btn"
+                                                    :class="replayStatus.isRecording ? 'btn-danger' : 'btn-outline-danger'">
+                                                <i class="bi" :class="replayStatus.isRecording ? 'bi-stop-circle' : 'bi-record-circle'"></i>
+                                                <span v-if="replayStatus.isRecording">Arrêter l'enregistrement</span>
+                                                <span v-else>Démarrer l'enregistrement</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Lecture du dernier replay -->
+                            <div class="col-md-4">
+                                <div class="card border-info h-100">
+                                    <div class="card-header bg-info bg-opacity-10 text-info">Lecture du dernier replay</div>
+                                    <div class="card-body">
+                                        <div class="d-grid gap-2">
+                                            <button @click="playLastReplay(100)" class="btn btn-primary">
+                                                <i class="bi bi-play-circle me-1"></i> Replay (100%)
+                                            </button>
+                                            <button @click="playLastReplay(50)" class="btn btn-info text-white">
+                                                <i class="bi bi-play-circle me-1"></i> Ralenti (50%)
+                                            </button>
+                                            <button @click="playLastReplay(25)" class="btn btn-info text-white">
+                                                <i class="bi bi-play-circle me-1"></i> Ralenti (25%)
+                                            </button>
+                                            <button @click="pauseReplay" class="btn btn-outline-secondary">
+                                                <i class="bi bi-pause-circle me-1"></i> Pause
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Marquage d'événements -->
+                            <div class="col-md-4">
+                                <div class="card border-info h-100">
+                                    <div class="card-header bg-info bg-opacity-10 text-info">Marquage d'événements</div>
+                                    <div class="card-body">
+                                        <div class="input-group mb-3">
+                                            <input type="text" class="form-control" placeholder="Nom de l'événement" v-model="eventName">
+                                            <button class="btn btn-success" type="button" @click="markReplayEvent">
+                                                <i class="bi bi-bookmark-plus"></i> Marquer
+                                            </button>
+                                        </div>
+                                        <div class="form-text mb-3">Marquez des moments importants pour les rejouer plus tard</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Liste des événements marqués -->
+                        <div v-if="replayEvents.length > 0" class="mt-4">
+                            <h4 class="h6 border-top pt-3">Événements marqués</h4>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Nom</th>
+                                            <th>Horodatage</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(event, index) in replayEvents" :key="index">
+                                            <td>{% raw %}{{ index + 1 }}{% endraw %}</td>
+                                            <td>{% raw %}{{ event.name || 'Événement ' + (index + 1) }}{% endraw %}</td>
+                                            <td>{% raw %}{{ formatTime(event.timestamp) }}{% endraw %}</td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button @click="playReplayEvent(index, 100)" class="btn btn-sm btn-outline-primary">
+                                                        <i class="bi bi-play-circle"></i> 100%
+                                                    </button>
+                                                    <button @click="playReplayEvent(index, 50)" class="btn btn-sm btn-outline-info">
+                                                        <i class="bi bi-play-circle"></i> 50%
+                                                    </button>
+                                                    <button @click="playReplayEvent(index, 25)" class="btn btn-sm btn-outline-info">
+                                                        <i class="bi bi-play-circle"></i> 25%
+                                                    </button>
+                                                    <button @click="deleteReplayEvent(index)" class="btn btn-sm btn-outline-danger" title="Supprimer l'événement">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TROISIÈME RANGÉE : Scoreboard -->
+
+            <!-- Section Scoreboard - Pleine largeur en bas -->
+            <div class="col-12">
+                <div class="card dashboard-card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h2 class="h5 mb-0"><i class="bi bi-trophy me-2"></i> Gestion du Score</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Équipe A -->
+                            <div class="col-md-5">
+                                <div class="card border-primary">
+                                    <div class="card-header bg-primary bg-opacity-10 text-primary">
+                                        {% raw %}{{ scoreData.teamA.name }}{% endraw %}
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-center mb-3">
+                                            <h3 class="score-display me-3 mb-0">{% raw %}{{ scoreData.teamA.score }}{% endraw %}</h3>
+                                            <div class="btn-group">
+                                                <button @click="incrementScore('A')" class="btn btn-success">
+                                                    <i class="bi bi-plus-lg"></i> Point
+                                                </button>
+                                                <button @click="decrementScore('A')" class="btn btn-danger" :disabled="scoreData.teamA.score <= 0">
+                                                    <i class="bi bi-dash-lg"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="alert alert-info" v-if="consecutivePointsA >= 3">
+                                            <i class="bi bi-exclamation-triangle me-2"></i>
+                                            <strong>{% raw %}{{ consecutivePointsA }}{% endraw %} points</strong> sans ralenti
+                                            <button @click="markReplayEvent('Point équipe A')" class="btn btn-sm btn-info ms-2">
+                                                <i class="bi bi-camera-reels me-1"></i> Ralenti
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Zone centrale - Sets -->
+                            <div class="col-md-2">
+                                <div class="card h-100 border-secondary">
+                                    <div class="card-header bg-secondary bg-opacity-10 text-secondary text-center">
+                                        Sets
+                                    </div>
+                                    <div class="card-body text-center">
+                                        <h3 class="set-score">{% raw %}{{ scoreData.teamA.sets }}{% endraw %} - {% raw %}{{ scoreData.teamB.sets }}{% endraw %}</h3>
+                                        <div class="btn-group mt-2 d-flex">
+                                            <button @click="updateSets('A')" class="btn btn-outline-primary btn-sm">
+                                                <i class="bi bi-plus-lg"></i> A
+                                            </button>
+                                            <button @click="updateSets('B')" class="btn btn-outline-danger btn-sm">
+                                                <i class="bi bi-plus-lg"></i> B
+                                            </button>
+                                        </div>
+                                        <button @click="updateScoreInVMix" class="btn btn-primary w-100 mt-3">
+                                            <i class="bi bi-arrow-up-circle me-1"></i> Mettre à jour vMix
+                                        </button>
+                                        <div class="mt-3">
+                                            <button @click="resetScores()" class="btn btn-warning btn-sm me-1">
+                                                <i class="bi bi-arrow-counterclockwise me-1"></i> Réinitialiser
+                                            </button>
+                                            <button @click="newSet()" class="btn btn-secondary btn-sm">
+                                                <i class="bi bi-plus-circle me-1"></i> Nouveau set
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Équipe B -->
+                            <div class="col-md-5">
+                                <div class="card border-danger">
+                                    <div class="card-header bg-danger bg-opacity-10 text-danger">
+                                        {% raw %}{{ scoreData.teamB.name }}{% endraw %}
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-center mb-3">
+                                            <h3 class="score-display me-3 mb-0">{% raw %}{{ scoreData.teamB.score }}{% endraw %}</h3>
+                                            <div class="btn-group">
+                                                <button @click="incrementScore('B')" class="btn btn-success">
+                                                    <i class="bi bi-plus-lg"></i> Point
+                                                </button>
+                                                <button @click="decrementScore('B')" class="btn btn-danger" :disabled="scoreData.teamB.score <= 0">
+                                                    <i class="bi bi-dash-lg"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="alert alert-info" v-if="consecutivePointsB >= 3">
+                                            <i class="bi bi-exclamation-triangle me-2"></i>
+                                            <strong>{% raw %}{{ consecutivePointsB }}{% endraw %} points</strong> sans ralenti
+                                            <button @click="markReplayEvent('Point équipe B')" class="btn btn-sm btn-info ms-2">
+                                                <i class="bi bi-camera-reels me-1"></i> Ralenti
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vue.js -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Script personnalisé pour la diffusion en direct -->
+    <script src="{{ url_for('static', filename='js/live_broadcast.js') }}"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

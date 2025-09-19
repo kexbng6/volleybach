@@ -1,0 +1,12 @@
+{
+  "title": "Match de Volleyball de test",
+  "service": "custom",
+  "quality": "1080p30",
+  "rtmpUrl": "1234567888",
+  "streamKey": "helloworld",
+  "description": "Stream en direct d'un match de volleyball",
+  "autoStartRecording": false,
+  "autoStartStreaming": false,
+  "thumbnailUrl": null,
+  "thumbnailVisible": false
+}

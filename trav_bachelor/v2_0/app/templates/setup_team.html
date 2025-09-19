@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Configuration des Équipes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.3.2/css/flag-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body class="bg-light text-dark">
+    {% include 'nav.html' %}
+    <div id="setup-team-app">
+        <div class="position-fixed top-0 end-0 p-3" style="z-index: 1050">
+          <div v-for="notification in notifications" :key="notification.id" class="toast show" :class="`text-bg-${notification.type}`">
+            <div class="toast-body">
+              {{ '{{ notification.message }}' }}
+            </div>
+          </div>
+        </div>
+        <div class="container py-5">
+            <h1 class="text-center mb-4">Configuration des Équipes</h1>
+
+            <!-- Navigation par onglets pour accès rapide -->
+            <ul class="nav nav-pills mb-4 justify-content-center">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#match-teams">Configuration du match</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#team-management">Gestion des équipes</a>
+                </li>
+            </ul>
+
+            <!-- Section de configuration des équipes du match -->
+            <div id="match-teams" class="card shadow-sm mb-5">
+                <div class="card-header bg-primary text-white"><h2 class="h5 mb-0"><i class="bi bi-controller me-2"></i> Configuration des équipes du match</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Équipe A -->
+                        <div class="col-md-6 mb-4 mb-md-0">
+                            <div class="card h-100 border-primary">
+                                <div class="card-header bg-primary bg-opacity-10 text-primary">
+                                    <h3 class="h6 mb-0">Équipe A (Domicile)</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Sélectionner une équipe existante</label>
+                                        <select class="form-select mb-2" v-model="teamA.selectedId" @change="selectTeamA">
+                                            <option value="">-- Choisir une équipe --</option>
+                                            <option v-for="team in teams" :key="team.id" :value="team.id">{{ '{{ team.name }}' }}</option>
+                                        </select>
+                                        <div class="d-flex align-items-center">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="createNewTeamA" v-model="teamA.createNew">
+                                                <label class="form-check-label" for="createNewTeamA">Créer une nouvelle équipe</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="teamA.createNew">
+                                        <div class="mb-3">
+                                            <label for="teamA_name" class="form-label">Nom de l'équipe</label>
+                                            <input type="text" class="form-control" id="teamA_name" v-model="teamA.name" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="teamA_logo" class="form-label">Logo de l'équipe</label>
+                                            <input type="file" class="form-control" id="teamA_logo" @change="handleLogoUpload('A', $event)" accept=".jpg,.jpeg,.png">
+                                            <div class="form-text">Format recommandé: PNG avec fond transparent, ratio 1:1</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="playersA_csv" class="form-label">Liste des joueurs (CSV)</label>
+                                            <input type="file" class="form-control" id="playersA_csv" @change="handleCsvUpload('A', $event)" accept=".csv">
+                                            <div class="form-text">Format: numéro,nom,prénom,position,taille,âge</div>
+                                        </div>
+
+                                        <!-- Bouton pour envoyer le roster vers vMix pour l'équipe A -->
+                                        <div class="mt-4">
+                                            <button type="button" class="btn btn-success" @click="sendRosterToVmix('A')" :disabled="!teamA.players">
+                                                <i class="bi bi-broadcast"></i> Envoyer la liste des joueurs vers vMix
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="teamA.selectedId && !teamA.createNew" class="mt-3 text-center">
+                                        <img v-if="teamA.logo" :src="teamA.logo" class="img-fluid mb-2" style="max-height: 80px;" alt="Logo équipe A">
+                                        <h4 class="h6">{{ '{{ teamA.name }}' }}</h4>
+                                        <p class="mb-0 small text-muted">{{ '{{ teamA.playerCount }}' }} joueurs</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Équipe B -->
+                        <div class="col-md-6">
+                            <div class="card h-100 border-danger">
+                                <div class="card-header bg-danger bg-opacity-10 text-danger">
+                                    <h3 class="h6 mb-0">Équipe B (Visiteur)</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Sélectionner une équipe existante</label>
+                                        <select class="form-select mb-2" v-model="teamB.selectedId" @change="selectTeamB">
+                                            <option value="">-- Choisir une équipe --</option>
+                                            <option v-for="team in teams" :key="team.id" :value="team.id">{{ '{{ team.name }}' }}</option>
+                                        </select>
+                                        <div class="d-flex align-items-center">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="createNewTeamB" v-model="teamB.createNew">
+                                                <label class="form-check-label" for="createNewTeamB">Créer une nouvelle équipe</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="teamB.createNew">
+                                        <div class="mb-3">
+                                            <label for="teamB_name" class="form-label">Nom de l'équipe</label>
+                                            <input type="text" class="form-control" id="teamB_name" v-model="teamB.name" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="teamB_logo" class="form-label">Logo de l'équipe</label>
+                                            <input type="file" class="form-control" id="teamB_logo" @change="handleLogoUpload('B', $event)" accept=".jpg,.jpeg,.png">
+                                            <div class="form-text">Format recommandé: PNG avec fond transparent, ratio 1:1</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="playersB_csv" class="form-label">Liste des joueurs (CSV)</label>
+                                            <input type="file" class="form-control" id="playersB_csv" @change="handleCsvUpload('B', $event)" accept=".csv">
+                                            <div class="form-text">Format: numéro,nom,prénom,position,taille,âge</div>
+                                        </div>
+
+                                        <!-- Bouton pour envoyer le roster vers vMix -->
+                                        <div class="mt-4">
+                                            <button type="button" class="btn btn-success" @click="sendRosterToVmix('B')" :disabled="!teamB.players">
+                                                <i class="bi bi-broadcast"></i> Envoyer la liste des joueurs vers vMix
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="teamB.selectedId && !teamB.createNew" class="mt-3 text-center">
+                                        <img v-if="teamB.logo" :src="teamB.logo" class="img-fluid mb-2" style="max-height: 80px;" alt="Logo équipe B">
+                                        <h4 class="h6">{{ '{{ teamB.name }}' }}</h4>
+                                        <p class="mb-0 small text-muted">{{ '{{ teamB.playerCount }}' }} joueurs</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <button @click="saveMatchTeams" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Configurer ce match
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section de gestion des équipes -->
+            <div id="team-management" class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="h5 mb-0"><i class="bi bi-people-fill me-2"></i> Gestion des équipes</h2>
+                </div>
+                <div class="card-body">
+                    <form id="team-form" @submit.prevent="createTeam" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="team_name" class="form-label">Nom de l'équipe</label>
+                            <input type="text" class="form-control" id="team_name" v-model="newTeam.name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="team_logo" class="form-label">Logo de l'équipe</label>
+                            <input type="file" class="form-control" id="team_logo" @change="handleNewTeamLogoUpload" accept=".jpg,.jpeg,.png">
+                            <div class="form-text">Format recommandé: PNG avec fond transparent, ratio 1:1</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="players_csv" class="form-label">Liste des joueurs (CSV)</label>
+                            <input type="file" class="form-control" id="players_csv" @change="handleNewTeamCsvUpload" accept=".csv">
+                            <div class="form-text">Format: numéro,nom,prénom,position,taille,âge</div>
+                        </div>
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Créer l'équipe
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="h5 mb-0"><i class="bi bi-list-ul me-2"></i> Équipes existantes</h2>
+                </div>
+                <div class="card-body">
+                    <div v-if="teams.length === 0" class="alert alert-info">
+                        Aucune équipe n'a été créée pour le moment.
+                    </div>
+                    <div v-else class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                        <div v-for="team in teams" :key="team.id" class="col">
+                            <div class="card h-100 team-card">
+                                <div class="card-body text-center">
+                                    <img v-if="team.logo" :src="team.logo" class="img-fluid mb-3" style="max-height: 100px;" :alt="team.name + ' logo'">
+                                    <h3 class="h5">{{ '{{ team.name }}' }}</h3>
+                                    <p class="text-muted">{{ '{{ team.players.length || 0 }}' }} joueurs</p>
+                                </div>
+                                <div class="card-footer bg-white border-top-0">
+                                    <div class="d-flex justify-content-between">
+                                        <button class="btn btn-outline-primary btn-sm" @click="viewTeam(team)">
+                                            <i class="bi bi-eye"></i> Voir
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm" @click="deleteTeam(team)">
+                                            <i class="bi bi-trash"></i> Supprimer
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section d'affichage des détails d'un joueur -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="h5 mb-0"><i class="bi bi-person-badge me-2"></i> Détails des joueurs</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Sélectionner une équipe</label>
+                            <select class="form-select" v-model="selectedTeamId" @change="loadTeamPlayers">
+                                <option value="">-- Choisir une équipe --</option>
+                                <option v-for="team in teams" :key="team.id" :value="team.id">{{ '{{ team.name }}' }}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6" v-if="selectedTeamId">
+                            <label class="form-label">Sélectionner un joueur</label>
+                            <select class="form-select" v-model="selectedPlayerId">
+                                <option value="">-- Choisir un joueur --</option>
+                                <option v-for="(player, index) in teamPlayers" :key="index" :value="index">
+                                    {{ '{{ player.prenom }}' }} {{ '{{ player.nom.toUpperCase() }}' }} ({{ '{{ player.numero || "N/A" }}' }})
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div v-if="selectedPlayerId !== ''" class="row">
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-body text-center">
+                                    <div class="placeholder-image bg-light rounded-circle d-inline-block mb-3" style="width: 120px; height: 120px; line-height: 120px; font-size: 2rem;">
+                                        <i class="bi bi-person"></i>
+                                    </div>
+                                    <h3 class="h4">{{ '{{ selectedPlayer.prenom }}' }} {{ '{{ selectedPlayer.nom.toUpperCase() }}' }}</h3>
+                                    <p class="display-6">{{ '{{ selectedPlayer.numero || "N/A" }}' }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h4 class="h6 mb-0">Informations du joueur</h4>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span>Position:</span>
+                                            <span class="fw-bold">{{ '{{ selectedPlayer.position || "Non spécifiée" }}' }}</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span>Taille:</span>
+                                            <span class="fw-bold">{{ '{{ selectedPlayer.taille ? selectedPlayer.taille + " cm" : "Non spécifiée" }}' }}</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span>Âge/Date de naissance:</span>
+                                            <span class="fw-bold">{{ '{{ selectedPlayer.date_naissance || "Non spécifié" }}' }}</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="card-footer bg-white">
+                                    <button class="btn btn-success w-100" @click="showPlayerDetailsInVmix" :disabled="!selectedPlayerId">
+                                        <i class="bi bi-broadcast"></i> Afficher les détails du joueur dans vMix
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/setup_team.js') }}"></script>
+</body>
+</html>

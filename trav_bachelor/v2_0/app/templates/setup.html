@@ -1,0 +1,235 @@
+<!-- template: setup.html -->
+
+<!-- TODO:  finish this page-->
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Configuration du Stream</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.3.2/css/flag-icons.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body class="bg-light text-dark">
+<div id="setup-app">
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 1050">
+      <div v-for="notification in notifications" :key="notification.id" class="toast show" :class="`text-bg-${notification.type}`">
+        <div class="toast-body">
+          {% raw %}{{ notification.message }}{% endraw %}
+        </div>
+      </div>
+    </div>
+    <div class="container py-5">
+        <h1 class="text-center mb-4">Configuration du Stream</h1>
+
+        <!-- Indicateur de statut vMix -->
+        <div class="text-end mb-3">
+            <span class="badge rounded-pill" :class="vmixConnected ? 'bg-success' : 'bg-danger'">
+                vMix: {% raw %}{{ vmixConnected ? 'Connecté' : 'Déconnecté' }}{% endraw %}
+            </span>
+            <button @click="connectVmix" v-if="!vmixConnected" class="btn btn-success btn-sm ms-2">
+                <i class="bi bi-plug-fill"></i> Connecter vMix
+            </button>
+            <button @click="disconnectVmix" v-else class="btn btn-danger btn-sm ms-2">
+                <i class="bi bi-plug"></i> Déconnecter vMix
+            </button>
+            <button @click="refreshSources" class="btn btn-info btn-sm ms-2" :disabled="!vmixConnected || isLoadingSources">
+                <i class="bi" :class="isLoadingSources ? 'bi-arrow-repeat spin' : 'bi-arrow-clockwise'"></i>
+                {% raw %}{{ isLoadingSources ? 'Chargement...' : 'Rafraîchir les sources' }}{% endraw %}
+            </button>
+        </div>
+
+        <!-- Configuration du Stream -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h5 mb-0"><i class="bi bi-gear-fill me-2"></i> Paramètres du stream</h2>
+            </div>
+            <div class="card-body">
+                <form @submit.prevent="saveStreamConfig">
+                    <div class="mb-3">
+                        <label for="streamUrl" class="form-label">URL du stream RTSP</label>
+                        <input type="text" class="form-control" id="streamUrl" v-model="streamConfig.url"
+                               placeholder="rtsp://exemple.com/stream">
+                    </div>
+                    <div class="mb-3">
+                        <label for="streamName" class="form-label">Nom du stream</label>
+                        <input type="text" class="form-control" id="streamName" v-model="streamConfig.name"
+                               placeholder="Match de Volleyball - championnat">
+                    </div>
+                    <div class="mb-3">
+                        <label for="streamKey" class="form-label">Clé du stream (optionnelle)</label>
+                        <input type="text" class="form-control" id="streamKey" v-model="streamConfig.key"
+                               placeholder="stream_key_123">
+                    </div>
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Sauvegarder la configuration
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Gestion des Entrées (Inputs) -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h5 mb-0"><i class="bi bi-camera-video-fill me-2"></i> Gestion des entrées</h2>
+            </div>
+            <div class="card-body">
+                <!-- Ajout direct de nouveaux inputs dans vMix -->
+                <h3 class="h6 mb-3">Ajouter une nouvelle source à vMix</h3>
+                <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle me-2"></i> Cette section vous permet d'ajouter directement de nouvelles sources dans vMix (caméras, fichiers, etc.)
+                </div>
+                <form @submit.prevent="addVmixInput" class="mb-4 p-3 border rounded bg-light">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label">Type de source</label>
+                            <div class="btn-group w-100">
+                                <button type="button" class="btn" :class="newVmixInput.sourceType === 'camera' ? 'btn-primary' : 'btn-outline-primary'" @click="newVmixInput.sourceType = 'camera'">
+                                    <i class="bi bi-camera-video me-1"></i> Caméra
+                                </button>
+                                <button type="button" class="btn" :class="newVmixInput.sourceType === 'video' ? 'btn-primary' : 'btn-outline-primary'" @click="newVmixInput.sourceType = 'video'">
+                                    <i class="bi bi-file-play me-1"></i> Vidéo
+                                </button>
+                                <button type="button" class="btn" :class="newVmixInput.sourceType === 'blank' ? 'btn-primary' : 'btn-outline-primary'" @click="newVmixInput.sourceType = 'blank'">
+                                    <i class="bi bi-square me-1"></i> Blank
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-7">
+                            <label for="vmixInputSource" class="form-label">Source à ajouter</label>
+                            <select class="form-select" id="vmixInputSource" v-model="newVmixInput.sourceId" @change="updateSourceName" required>
+                                <option value="">Sélectionner une source</option>
+                                <template v-if="newVmixInput.sourceType === 'camera'">
+                                    <option v-for="source in newCameraSources" :key="source.id" :value="source.id">
+                                        {% raw %}{{ source.name }}{% endraw %}
+                                    </option>
+                                </template>
+                                <template v-if="newVmixInput.sourceType === 'video'">
+                                    <option v-for="source in newVideoSources" :key="source.id" :value="source.id">
+                                        {% raw %}{{ source.name }}{% endraw %}
+                                    </option>
+                                </template>
+                                <template v-if="newVmixInput.sourceType === 'blank'">
+                                    <option v-for="source in newBlankSources" :key="source.id" :value="source.id">
+                                        {% raw %}{{ source.name }}{% endraw %}
+                                    </option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-success w-100" :disabled="!canAddVmixInput || isAddingVmixInput">
+                                <template v-if="isAddingVmixInput">
+                                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                    Ajout...
+                                </template>
+                                <template v-else>
+                                    <i class="bi bi-plus-circle me-1"></i> Ajouter à vMix
+                                </template>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Ajout de nouvelles entrées (pour l'application) -->
+                <h3 class="h6 mb-3">Ajouter une nouvelle entrée à l'application</h3>
+                <form @submit.prevent="addInput" class="mb-4">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label for="inputType" class="form-label">Type d'entrée</label>
+                            <select class="form-select" id="inputType" v-model="newInput.type" required>
+                                <option value="">Sélectionner un type</option>
+                                <option value="camera">Caméra</option>
+                                <option value="video">Vidéo</option>
+                                <option value="audio">Audio</option>
+                                <option value="blank">Blank</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="inputName" class="form-label">Nom de l'entrée</label>
+                            <input type="text" class="form-control" id="inputName" v-model="newInput.name"
+                                placeholder="Caméra principale" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="inputSource" class="form-label">Source</label>
+                            <select class="form-select" id="inputSource" v-model="newInput.source" required>
+                                <option value="">Sélectionner une source</option>
+                                <template v-if="newInput.type === 'camera'">
+                                    <option v-for="source in cameraSources" :key="source.id" :value="source.id">
+                                         {% raw %}{{ source.name }}{% endraw %}
+                                    </option>
+                                </template>
+                                <template v-if="newInput.type === 'video'">
+                                    <option v-for="source in videoSources" :key="source.id" :value="source.id">
+                                        {% raw %}{{ source.name }}{% endraw %}
+                                    </option>
+                                </template>
+                                <template v-if="newInput.type === 'audio'">
+                                    <option v-for="source in audioSources" :key="source.id" :value="source.id">
+                                        {% raw %}{{ source.name }}{% endraw %}
+                                    </option>
+                                </template>
+                                <template v-if="newInput.type === 'blank'">
+                                    <option v-for="source in blankSources" :key="source.id" :value="source.id">
+                                        {% raw %}{{ source.name }}{% endraw %}
+                                    </option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-success w-100" :disabled="!canAddInput">
+                                <i class="bi bi-plus-circle"></i> Ajouter
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Liste des entrées configurées -->
+                <h3 class="h6 mb-3">Entrées configurées</h3>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Nom</th>
+                                <th>Source</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-if="inputs.length === 0">
+                                <td colspan="4" class="text-center fst-italic">Aucune entrée configurée</td>
+                            </tr>
+                            <tr v-for="(input, index) in inputs" :key="index">
+                                <td>
+                                    <span class="badge" :class="input.type === 'video' ? 'bg-danger' : 'bg-info'">
+                                        <i :class="input.type === 'video' ? 'bi bi-camera-video' : 'bi bi-mic'"></i>
+                                        {% raw %}{{ input.type === 'video' ? 'Vidéo' : 'Audio' }}{% endraw %}
+                                    </span>
+                                </td>
+                                <td>{% raw %}{{ input.name }}{% endraw %}</td>
+                                <td>{% raw %}{{ input.sourceName }}{% endraw %}</td>
+                                <td>
+                                    <button @click="removeInput(index)" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-trash"></i> Supprimer
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script Vue.js -->
+<script src="{{ url_for('static', filename='js/setup_app.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Configuration des Équipes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.3.2/css/flag-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body class="bg-light text-dark">
+    {% include 'core/nav.html' %}
+    <div id="setup-team-app">
+        <div class="position-fixed top-0 end-0 p-3" style="z-index: 1050">
+          <div v-for="notification in notifications" :key="notification.id" class="toast show" :class="`text-bg-${notification.type}`">
+            <div class="toast-body">
+              {% raw %}{{ notification.message }}{% endraw %}
+            </div>
+          </div>
+        </div>
+        <div class="container py-5">
+            <h1 class="text-center mb-4">Configuration des Équipes</h1>
+
+            <!-- Section de configuration des équipes du match -->
+            <div id="match-teams" class="card shadow-sm mb-5">
+                <div class="card-header bg-primary text-white"><h2 class="h5 mb-0"><i class="bi bi-controller me-2"></i> Configuration des équipes du match</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Équipe A -->
+                        <div class="col-md-6 mb-4 mb-md-0">
+                            <div class="card h-100 border-primary">
+                                <div class="card-header bg-primary bg-opacity-10 text-primary">
+                                    <h3 class="h6 mb-0">Équipe A (Domicile)</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Sélectionner une équipe existante</label>
+                                        <select class="form-select mb-2" v-model="teamA.selectedId" @change="selectTeamA">
+                                            <option value="">-- Choisir une équipe --</option>
+                                            <option v-for="team in teams" :key="team.id" :value="team.id">{% raw %}{{ team.name }}{% endraw %}</option>
+                                        </select>
+                                        <div class="d-flex align-items-center">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="createNewTeamA" v-model="teamA.createNew">
+                                                <label class="form-check-label" for="createNewTeamA">Créer une nouvelle équipe</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="teamA.createNew">
+                                        <div class="mb-3">
+                                            <label for="teamA_name" class="form-label">Nom de l'équipe</label>
+                                            <input type="text" class="form-control" id="teamA_name" v-model="teamA.name" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="teamA_logo" class="form-label">Logo de l'équipe</label>
+                                            <input type="file" class="form-control" id="teamA_logo" @change="handleLogoUpload('A', $event)" accept=".jpg,.jpeg,.png">
+                                            <div class="form-text">Format recommandé: PNG avec fond transparent, ratio 1:1</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="playersA_csv" class="form-label">Liste des joueurs (CSV)</label>
+                                            <input type="file" class="form-control" id="playersA_csv" @change="handleCsvUpload('A', $event)" accept=".csv">
+                                            <div class="form-text">Format: numéro,nom,prénom,position,taille,date_naissance</div>
+                                        </div>
+                                        <div class="d-grid gap-2 mb-3">
+                                            <button type="button" class="btn btn-primary" @click="saveTeam('A')">
+                                                <i class="bi bi-save"></i> Enregistrer cette équipe
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="teamA.selectedId && !teamA.createNew" class="mt-3 text-center">
+                                        <img v-if="teamA.logo" :src="teamA.logo" class="img-fluid mb-2" style="max-height: 80px;" alt="Logo équipe A">
+                                        <h4 class="h6">{% raw %}{{ teamA.name }}{% endraw %}</h4>
+                                        <p class="mb-0 small text-muted">{% raw %}{{ teamA.playerCount }}{% endraw %} joueurs</p>
+                                    </div>
+
+                                    <!-- Bouton pour envoyer le roster vers vMix pour l'équipe A -->
+                                    <div class="mt-4">
+                                        <button type="button" class="btn btn-success w-100" @click="sendRosterToVmix('A')" :disabled="!(teamA.selectedId || (teamA.createNew && teamA.players))">
+                                            <i class="bi bi-broadcast"></i> Envoyer la liste des joueurs vers vMix
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Équipe B -->
+                        <div class="col-md-6">
+                            <div class="card h-100 border-danger">
+                                <div class="card-header bg-danger bg-opacity-10 text-danger">
+                                    <h3 class="h6 mb-0">Équipe B (Visiteur)</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Sélectionner une équipe existante</label>
+                                        <select class="form-select mb-2" v-model="teamB.selectedId" @change="selectTeamB">
+                                            <option value="">-- Choisir une équipe --</option>
+                                            <option v-for="team in teams" :key="team.id" :value="team.id">{% raw %}{{ team.name }}{% endraw %}</option>
+                                        </select>
+                                        <div class="d-flex align-items-center">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="createNewTeamB" v-model="teamB.createNew">
+                                                <label class="form-check-label" for="createNewTeamB">Créer une nouvelle équipe</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="teamB.createNew">
+                                        <div class="mb-3">
+                                            <label for="teamB_name" class="form-label">Nom de l'équipe</label>
+                                            <input type="text" class="form-control" id="teamB_name" v-model="teamB.name" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="teamB_logo" class="form-label">Logo de l'équipe</label>
+                                            <input type="file" class="form-control" id="teamB_logo" @change="handleLogoUpload('B', $event)" accept=".jpg,.jpeg,.png">
+                                            <div class="form-text">Format recommandé: PNG avec fond transparent, ratio 1:1</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="playersB_csv" class="form-label">Liste des joueurs (CSV)</label>
+                                            <input type="file" class="form-control" id="playersB_csv" @change="handleCsvUpload('B', $event)" accept=".csv">
+                                            <div class="form-text">Format: numéro,nom,prénom,position,taille,date_naissance</div>
+                                        </div>
+                                        <div class="d-grid gap-2 mb-3">
+                                            <button type="button" class="btn btn-primary" @click="saveTeam('B')">
+                                                <i class="bi bi-save"></i> Enregistrer cette équipe
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="teamB.selectedId && !teamB.createNew" class="mt-3 text-center">
+                                        <img v-if="teamB.logo" :src="teamB.logo" class="img-fluid mb-2" style="max-height: 80px;" alt="Logo équipe B">
+                                        <h4 class="h6">{% raw %}{{ teamB.name }}{% endraw %}</h4>
+                                        <p class="mb-0 small text-muted">{% raw %}{{ teamB.playerCount }}{% endraw %} joueurs</p>
+                                    </div>
+
+                                    <!-- Bouton pour envoyer le roster vers vMix pour l'équipe B -->
+                                    <div class="mt-4">
+                                        <button type="button" class="btn btn-success w-100" @click="sendRosterToVmix('B')" :disabled="!(teamB.selectedId || (teamB.createNew && teamB.players))">
+                                            <i class="bi bi-broadcast"></i> Envoyer la liste des joueurs vers vMix
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <button @click="saveMatchTeams" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Configurer ce match
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section d'affichage des détails d'un joueur -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="h5 mb-0"><i class="bi bi-person-badge me-2"></i> Détails des joueurs</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Sélectionner une équipe</label>
+                            <select class="form-select" v-model="selectedTeamId" @change="loadTeamPlayers">
+                                <option value="">-- Choisir une équipe --</option>
+                                <option v-for="team in teams" :key="team.id" :value="team.id">{% raw %}{{ team.name }}{% endraw %}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6" v-if="selectedTeamId">
+                            <label class="form-label">Sélectionner un joueur</label>
+                            <select class="form-select" v-model="selectedPlayerId">
+                                <option value="">-- Choisir un joueur --</option>
+                                <option v-for="(player, index) in teamPlayers" :key="index" :value="index">
+                                    {% raw %}{{ player.prenom }}{% endraw %} {% raw %}{{ player.nom.toUpperCase() }}{% endraw %} ({% raw %}{{ player.numero || "N/A" }}{% endraw %})
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div v-if="selectedPlayerId !== ''" class="row">
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-body text-center">
+                                    <div class="placeholder-image bg-light rounded-circle d-inline-block mb-3" style="width: 120px; height: 120px; line-height: 120px; font-size: 2rem;">
+                                        <i class="bi bi-person"></i>
+                                    </div>
+                                    <h3 class="h4">{% raw %}{{ selectedPlayer.prenom }}{% endraw %} {% raw %}{{ selectedPlayer.nom.toUpperCase() }}{% endraw %}</h3>
+                                    <p class="display-6">{% raw %}{{ selectedPlayer.numero || "N/A" }}{% endraw %}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h4 class="h6 mb-0">Informations du joueur</h4>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span>Position:</span>
+                                            <span class="fw-bold">{% raw %}{{ selectedPlayer.position || "Non spécifiée" }}{% endraw %}</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span>Taille:</span>
+                                            <span class="fw-bold">{% raw %}{{ selectedPlayer.taille ? selectedPlayer.taille + " cm" : "Non spécifiée" }}{% endraw %}</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span>Âge/Date de naissance:</span>
+                                            <span class="fw-bold">{% raw %}{{ selectedPlayer.date_naissance || "Non spécifié" }}{% endraw %}</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="card-footer bg-white">
+                                    <button class="btn btn-success w-100" @click="showPlayerDetailsInVmix" :disabled="!selectedPlayerId">
+                                        <i class="bi bi-broadcast"></i> Afficher les détails du joueur dans vMix
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/setup_team.js') }}"></script>
+</body>
+</html>

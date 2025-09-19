@@ -1,0 +1,10 @@
+{
+  "duration": 8,
+  "speed": 50,
+  "enableAutoReplay": false,
+  "events": {
+    "point": true,
+    "set": true,
+    "match": true
+  }
+}

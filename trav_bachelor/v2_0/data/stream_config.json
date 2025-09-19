@@ -1,0 +1,23 @@
+{
+    "stream": {},
+    "inputs": [],
+    "detectedSources": {
+        "camera": [],
+        "video": [
+            {
+                "id": "1",
+                "name": "1-C4hzXFD2jN9JdGW6nvTy.mp4",
+                "type": "Video"
+            }
+        ],
+        "audio": [
+            {
+                "id": "7",
+                "name": "ambientVolume",
+                "type": "Audio"
+            }
+        ],
+        "blank": [],
+        "lastUpdated": "2025-09-18 11:48:09"
+    }
+}
