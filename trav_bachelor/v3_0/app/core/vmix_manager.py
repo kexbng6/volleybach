@@ -1188,4 +1188,3 @@ class VMixManager:
         except Exception as e:
             logger.error(f"Erreur lors de la mise à jour du scoreboard: {str(e)}")
             return False
-

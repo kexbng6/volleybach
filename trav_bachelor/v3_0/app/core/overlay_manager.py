@@ -22,7 +22,7 @@ class OverlayManager:
         
         Args:
             vmix_manager: Instance de Vmix_manager à utiliser
-            data_dir: Répertoire où stocker les configurations d'overlays
+            data_dir: Répertoire pour les configurations d'overlays
         """
         # Si aucun répertoire n'est spécifié, utiliser le répertoire courant
         if data_dir is None:
